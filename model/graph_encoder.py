@@ -3,8 +3,9 @@ import numpy as np
 from torch import nn
 import math
 
-
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+
 class SkipConnection(nn.Module):
 
     def __init__(self, module):
@@ -107,8 +108,6 @@ class MultiHeadAttention(nn.Module):
             self.W_out.view(-1, self.embed_dim)
         ).view(batch_size, n_query, self.embed_dim)
 
-    
-
         return out
 
 
@@ -194,7 +193,6 @@ class GraphAttentionEncoder(nn.Module):
         )).to(device)
 
     def forward(self, x, mask=None):
-
         assert mask is None, "TODO mask not yet supported!"
 
         # Batch multiply to get initial embeddings of nodes

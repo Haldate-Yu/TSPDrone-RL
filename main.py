@@ -1,15 +1,15 @@
-import numpy as np 
-import os 
-import torch 
+import numpy as np
+import os
+import torch
 import random
 from utils.options import ParseParams
 from utils.env_no_comb import Env, DataGenerator
-from model.nnets import Actor, Critic 
-from utils.agent import A2CAgent 
+from model.nnets import Actor, Critic
+from utils.agent import A2CAgent
 import time
 
 if __name__ == '__main__':
-    args = ParseParams()   
+    args = ParseParams()
     random_seed = args['random_seed']
     if random_seed is not None and random_seed > 0:
         print("# Set random seed to %d" % random_seed)
@@ -34,8 +34,8 @@ if __name__ == '__main__':
             actor.load_state_dict(torch.load(path, map_location='cpu'))
             path = save_path + 'n' + str(n_nodes) + '/best_model_critic_params.pkl'
             critic.load_state_dict(torch.load(path, map_location='cpu'))
-            print("Succesfully loaded keys")
-    
+            print("Successfully loaded keys")
+
     agent = A2CAgent(actor, critic, args, env, dataGen)
     if args['train']:
         agent.train()
@@ -44,9 +44,3 @@ if __name__ == '__main__':
             best_R = agent.sampling_batch(args['n_samples'])
         else:
             R = agent.test()
-        
-        
-       
-
-
-

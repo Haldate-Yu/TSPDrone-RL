@@ -10,17 +10,18 @@ from datetime import datetime
 import numpy as np
 
 import numpy as np
-import scipy.misc 
+import scipy.misc
+
 try:
-        from StringIO import StringIO  # Python 2.7
+    from StringIO import StringIO  # Python 2.7
 except ImportError:
-        from io import BytesIO         # Python 3.x
+    from io import BytesIO  # Python 3.x
 
 print_grad = True
 
 
 class printOut(object):
-    def __init__(self,f=None ,stdout_print=True):
+    def __init__(self, f=None, stdout_print=True):
         ''' 
         This class is used for controlling the printing. It will write in a 
         file f and screen simultanously.
@@ -46,14 +47,12 @@ class printOut(object):
                 sys.stdout.write("\n")
             sys.stdout.flush()
 
-    def print_time(self,s, start_time):
+    def print_time(self, s, start_time):
         """Take a start time, print elapsed duration, and return a new time."""
-        self.print_out("%s, time %ds, %s." % (s, (time.time() - start_time) +"  " +str(time.ctime()) ))
+        self.print_out("%s, time %ds, %s." % (s, (time.time() - start_time) + "  " + str(time.ctime())))
         return time.time()
 
 
 def get_time():
     '''returns formatted current time'''
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
- 
-
