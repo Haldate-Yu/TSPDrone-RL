@@ -167,7 +167,9 @@ class Decoder(nn.Module):
 
 
 class Actor(nn.Module):
-
+    '''
+        The main actor model with Encoder & Decoder
+    '''
     def __init__(self, hidden_size,
                  num_layers=1, dropout=0.1, mask_logits=True):
         super(Actor, self).__init__()

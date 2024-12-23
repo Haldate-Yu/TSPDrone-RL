@@ -33,6 +33,8 @@ def create_test_dataset(
         # make the last node depot 
         network = np.concatenate([demand, np.zeros([args['test_size'], 1, 1])], 1)
         input_data = np.concatenate([input_pnt, network], 2)
+        # todo: generate graph topology
+
         np.savetxt(fname, input_data.reshape(-1, n_nodes * 3))
 
     return input_data
@@ -56,6 +58,7 @@ class DataGenerator(object):
 
         network = np.concatenate([demand, np.zeros([args['batch_size'], 1, 1])], 1)
         input_data = np.concatenate([input_pnt, network], 2)
+        # todo: generate graph topology
 
         return input_data
 
@@ -143,7 +146,7 @@ class Env(object):
         time_vec_drone[:, 0] = np.logical_and(np.less(time_step, t_drone),
                                               np.greater(time_vec_drone[:, 1], np.zeros(self.batch_size))) * idx_drone
 
-        # update demand because of turck and drone 
+        # update demand because of truck and drone
         b_s = np.where(np.equal(time_vec_truck[:, 1], np.zeros(self.batch_size)))[0]
         self.state[b_s, idx_truck[b_s]] = np.zeros(len(b_s))
         idx_satis = np.where(np.less(self.sortie - np.equal(time_vec_drone[:, 1], 0), np.zeros(self.batch_size)))[0]

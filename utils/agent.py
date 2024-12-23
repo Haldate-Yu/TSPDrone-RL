@@ -45,7 +45,6 @@ class A2CAgent(object):
         s_t = time.time()
         print("training started")
         for i in range(max_epochs):
-
             data = dataGen.get_train_next()
             env.input_data = data
             state, avail_actions = env.reset()
@@ -54,8 +53,8 @@ class A2CAgent(object):
             static_hidden = actor.emd_stat(data).permute(0, 2, 1)
             # critic inputs 
             static = torch.from_numpy(env.input_data[:, :, :2].astype(np.float32)).permute(0, 2, 1).to(device)
-            w = torch.from_numpy(env.input_data[:, :, 2].reshape(env.batch_size, env.n_nodes, 1).astype(np.float32)).to(
-                device)
+            w = (torch.from_numpy(env.input_data[:, :, 2].reshape(env.batch_size, env.n_nodes, 1).astype(np.float32))
+            .to(device))
 
             # lstm initial states 
             hx = torch.zeros(1, env.batch_size, args['hidden_dim']).to(device)
@@ -68,7 +67,7 @@ class A2CAgent(object):
 
             # [n_nodes, rem_time]
             time_vec_truck = np.zeros([env.batch_size, 2])
-            # [n_nodes, rem_time, weigth]
+            # [n_nodes, rem_time, weight]
             time_vec_drone = np.zeros([env.batch_size, 3])
 
             # storage containers 

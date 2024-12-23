@@ -100,7 +100,7 @@ class Env(object):
         for i in range(self.n_nodes):
             for j in range(i + 1, self.n_nodes):
                 self.dist_mat[:, i, j] = ((self.input_pnt[:, i, 0] - self.input_pnt[:, j, 0]) ** 2 + (
-                            self.input_pnt[:, i, 1] - self.input_pnt[:, j, 1]) ** 2) ** 0.5
+                        self.input_pnt[:, i, 1] - self.input_pnt[:, j, 1]) ** 2) ** 0.5
                 self.dist_mat[:, j, i] = self.dist_mat[:, i, j]
 
         self.drone_mat = self.dist_mat / self.v_d
@@ -143,12 +143,12 @@ class Env(object):
 
         time_vec_truck[:, 1] += np.logical_and(np.equal(time_vec_truck[:, 1], np.zeros(self.batch_size)),
                                                np.greater(t_truck, np.zeros(self.batch_size))).astype(int) * (
-                                            t_truck - time_step) - \
+                                        t_truck - time_step) - \
                                 np.greater(time_vec_truck[:, 1], np.zeros(self.batch_size)) * (time_step)
 
         time_vec_drone[:, 1] += np.logical_and(np.equal(time_vec_drone[:, 1], np.zeros(self.batch_size)),
                                                np.greater(t_drone, np.zeros(self.batch_size))).astype(int) * (
-                                            t_drone - time_step) - \
+                                        t_drone - time_step) - \
                                 np.greater(time_vec_drone[:, 1], np.zeros(self.batch_size)) * (time_step)
 
         #   self.truck_loc += np.logical_and(np.less_equal(time_step, t_truck), np.equal(time_vec_truck[:, 1], np.zeros(self.batch_size)))*(idx_truck - self.truck_loc)
@@ -170,7 +170,7 @@ class Env(object):
         # update sortie if drone served customer 
         self.sortie[idx_satis] = np.ones(len(idx_satis))
         a = np.equal((self.truck_loc == self.drone_loc).astype(int) + (time_vec_drone[:, 1] == 0).astype(int) + (
-                    time_vec_truck[:, 1] == 0).astype(int), 3)
+                time_vec_truck[:, 1] == 0).astype(int), 3)
         b = np.equal((self.combined_nodes[np.arange(self.batch_size), self.truck_loc] == 1).astype(int) + a.astype(int),
                      2)
         idx_stais = np.where(np.expand_dims(a, 1))[0]
