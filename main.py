@@ -1,12 +1,12 @@
 import numpy as np
 import os
-import torch
 import random
-from utils.options import ParseParams
-from utils.env_no_comb import Env, DataGenerator
+import torch
+import argparse
 from model.nnets import Actor, Critic
 from utils.agent import A2CAgent
-import time
+from utils.env_no_comb import Env, DataGenerator
+from graph_model.base_model import Net_GCN
 
 
 def str2bool(v):
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('--v_t', default=1, type=int, help="Speed of truck in m/s")
     parser.add_argument('--v_d', default=2, type=int, help="Speed of drone in m/s")
     parser.add_argument('--max_w', default=2.5, type=float, help="Max weight a drone can carry")
-    parser.add_argument('--batch_size', default=100, type=int, help='Batch size for training')
+    parser.add_argument('--batch_size', default=10, type=int, help='Batch size for training')
     parser.add_argument('--n_train', default=1000000, type=int, help='# of episodes for training')
     parser.add_argument('--test_size', default=100, type=int, help='# of instances for testing')
     parser.add_argument('--data_dir', type=str, default='data')
@@ -51,9 +51,15 @@ if __name__ == '__main__':
 
     # Graph Topology
     parser.add_argument('--create_graph', type=str, default='knn', help='way to generate graph')
-    parser.add_argument('--k_value', type=int, default=5, help='specific k value for knn method')
+    parser.add_argument('--k_value', type=int, help='specific k value for knn method')
+    parser.add_argument('--distance_threshold', type=float, help='specific threshold value for knn+ method')
+    parser.add_argument('--use_coord_features', default=True, type=str2bool, help='whether to use '
+                                                                                  'coordinates as node features or'
+                                                                                  ' distance as node features')
 
     # Graph Model Options
+    parser.add_argument('--gnn_layers', type=int, default=2, help='model layers for gnn model')
+    parser.add_argument('--gnn_hidden_dims', type=int, default=32, help='hidden dims for gnn model')
 
     '''
         Train & Test Options
@@ -63,9 +69,12 @@ if __name__ == '__main__':
     parser.add_argument('--actor_net_lr', default=1e-4, type=float, help="Set the learning rate for the actor network")
     parser.add_argument('--critic_net_lr', default=1e-4, type=float,
                         help="Set the learning rate for the critic network")
-    parser.add_argument('--random_seed', default=5, type=int, help='')
+    parser.add_argument('--gnn_net_lr', default=5e-4, type=float, help="Set the learning rate for the GNN network")
+    parser.add_argument('--gnn_net_wd', type=float, default=0.0001, help='Set the weight decay for the GNN network')
+    parser.add_argument('--random_seed', default=42, type=int, help='')
     parser.add_argument('--max_grad_norm', default=2.0, type=float, help='Gradient clipping')
     parser.add_argument('--decode_len', default=30, type=int, help='Max number of steps per episode')
+    parser.add_argument('--patience', type=int, default=50, help='patience for early stopping')
 
     # Evaluation
     parser.add_argument('--sampling', default=True, type=str2bool, help="whether to do the batch sampling or not")
@@ -102,9 +111,16 @@ if __name__ == '__main__':
     print("test all: {}".format(data))
     print("\n")
 
+    # todo load GNN model utils
+    gnn_model = Net_GCN(input_dims=2, num_layers=args['gnn_layers'], hidden_dims=args['gnn_hidden_dims'],
+                        output_dims=args['hidden_dim'], dropout=args['dropout'])
+
     env = Env(args, data)
-    actor = Actor(args['hidden_dim'])
-    critic = Critic(args['hidden_dim'])
+    actor = Actor(hidden_size=args['hidden_dim'], num_layers=args['rnn_layers'],
+                  dropout=args['dropout'], mask_logits=args['mask_logits'],
+                  gnn_model=gnn_model)
+    critic = Critic(hidden_size=args['hidden_dim'], num_layers=args['rnn_layers'])
+
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     else:

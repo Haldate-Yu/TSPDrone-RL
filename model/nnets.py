@@ -171,7 +171,8 @@ class Actor(nn.Module):
         The main actor model with Encoder & Decoder
     '''
     def __init__(self, hidden_size,
-                 num_layers=1, dropout=0.1, mask_logits=True):
+                 num_layers=1, dropout=0.1, mask_logits=True,
+                 gnn_model=None):
         super(Actor, self).__init__()
 
         self.mask_logits = mask_logits
@@ -180,10 +181,14 @@ class Actor(nn.Module):
         self.attention_encoder = AttentionModel(hidden_size, hidden_size)
         self.dynamic_d_ex = Encoder(1, hidden_size)
         self.decoder = Decoder(hidden_size, num_layers, dropout)
+        # Define gnn models
+        self.gnn_model = gnn_model
+
         if torch.cuda.is_available():
             self.attention_encoder = self.attention_encoder.cuda()
             self.dynamic_d_ex = self.dynamic_d_ex.cuda()
             self.decoder = self.decoder.cuda()
+            self.gnn_model = self.gnn_model.cuda()
         self.logsoft = nn.LogSoftmax()
         self.Bignumber = 100000
         self.sample_mode = False
@@ -192,9 +197,16 @@ class Actor(nn.Module):
             if len(p.shape) > 1:
                 nn.init.xavier_uniform_(p)
 
-    def emd_stat(self, static):
+    def emd_stat(self, data_source, static):
+        encoder_output = self.attention_encoder(static)
+        if self.gnn_model is not None:
+            # adding graph features for each graph
+            # using add concat
+            graph_data = data_source.get_graph_data(static)
+            node_features = self.gnn_model(graph_data)
+            encoder_output = torch.add(encoder_output, node_features)
 
-        return self.attention_encoder(static)
+        return encoder_output
 
     def forward(self, static_hidden, dynamic, decoder_input, last_hh, terminated, avail_actions):
 

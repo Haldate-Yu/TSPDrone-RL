@@ -1,9 +1,12 @@
 import numpy as np
+import networkx as nx
 import os
 import warnings
 import collections
 import copy
 import time
+import torch
+import torch_geometric
 
 
 def create_test_dataset(
@@ -33,9 +36,10 @@ def create_test_dataset(
         # make the last node depot 
         network = np.concatenate([demand, np.zeros([args['test_size'], 1, 1])], 1)
         input_data = np.concatenate([input_pnt, network], 2)
-        # todo: generate graph topology
+
 
         np.savetxt(fname, input_data.reshape(-1, n_nodes * 3))
+    # todo: generate graph topology
 
     return input_data
 
@@ -51,14 +55,13 @@ class DataGenerator(object):
     def get_train_next(self):
         args = self.args
         input_pnt = np.random.uniform(1, 100,
-                                      size=(args['test_size'], args['n_nodes'] - 1, 2))
-        input_pnt = np.concatenate([input_pnt, np.random.uniform(0, 1, size=(args['test_size'], 1, 2))], axis=1)
+                                      size=(args['batch_size'], args['n_nodes'] - 1, 2))
+        input_pnt = np.concatenate([input_pnt, np.random.uniform(0, 1, size=(args['batch_size'], 1, 2))], axis=1)
 
         demand = np.ones([args['batch_size'], args['n_nodes'] - 1, 1])
 
         network = np.concatenate([demand, np.zeros([args['batch_size'], 1, 1])], 1)
         input_data = np.concatenate([input_pnt, network], 2)
-        # todo: generate graph topology
 
         return input_data
 
@@ -67,6 +70,63 @@ class DataGenerator(object):
         Get all test problems
         '''
         return self.test_data
+
+    def get_graph_data(self, data_array):
+        dataset = []
+        batch_size, num_nodes, coord_dim = data_array.size()
+        # transform coordinate with TRUE earth distance
+        for i in range(batch_size):
+            # for each graph, generate its topology data
+            coord_batch = data_array[i]
+            num_nodes_batch = coord_batch.size(0)
+            # initial edge index and edge attr list
+            src_list = []
+            dst_list = []
+            edge_attr_list = []
+            edge_weights = np.zeros((num_nodes_batch, num_nodes_batch))
+            for j in range(num_nodes_batch):
+                for k in range(num_nodes_batch):
+                    # calculate Euclidean distance.
+                    edge_weights[j, k] = torch.sqrt(torch.sum((coord_batch[j] - coord_batch[k]) ** 2))
+            # sparsification using topk/threshold args
+            if self.args["k_value"] is not None:
+                topk = self.args["k_value"]
+                for j in range(num_nodes_batch):
+                    sorted_indices = np.argsort(edge_weights[j])[:topk]
+                    for idx in sorted_indices:
+                        # avoid self-loops
+                        if j != idx:
+                            src_list.append(j)
+                            dst_list.append(idx)
+                            edge_attr_list.append(edge_weights[j, idx])
+
+            elif self.args["distance_threshold"] is not None:
+                distance_threshold = self.args["distance_threshold"]
+                for j in range(num_nodes_batch):
+                    for k in range(num_nodes_batch):
+                        if edge_weights[j, k] < distance_threshold:
+                            src_list.append(j)
+                            dst_list.append(k)
+                            edge_attr_list.append(edge_weights[j, k])
+
+            else:
+                raise Exception("At least one value or threshold should be set!")
+
+            edge_index = torch.tensor([src_list, dst_list], dtype=torch.long)
+            edge_attr = torch.tensor(edge_attr_list, dtype=torch.float).view(-1, 1)
+            if self.args['use_coord_features'] is True:
+                # 1. generate node features from coordinates
+                node_features = coord_batch
+            else:
+                # 2. generate node features from distances
+                avg_distances = torch.mean(edge_weights, dim=1)
+                node_features = avg_distances.view(-1, 1)
+
+            data = torch_geometric.data.Data(edge_index=edge_index, edge_attr=edge_attr, x=node_features)
+            if torch.cuda.is_available():
+                data = data.cuda()
+            dataset.append(data)
+        return dataset
 
 
 class Env(object):

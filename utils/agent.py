@@ -38,6 +38,7 @@ class A2CAgent(object):
         actor_optim = optim.Adam(actor.parameters(), lr=args['actor_net_lr'])
         critic_optim = optim.Adam(critic.parameters(), lr=args['critic_net_lr'])
 
+        patience = 0
         best_model = 1000
         val_model = 1000
         r_test = []
@@ -50,11 +51,14 @@ class A2CAgent(object):
             state, avail_actions = env.reset()
             data = torch.from_numpy(data[:, :, :2].astype(np.float32)).to(device)
             # [b_s, hidden_dim, n_nodes]
-            static_hidden = actor.emd_stat(data).permute(0, 2, 1)
+            # encoder part [node encoding]
+            static_hidden = actor.emd_stat(dataGen, data).permute(0, 2, 1)
+
             # critic inputs 
             static = torch.from_numpy(env.input_data[:, :, :2].astype(np.float32)).permute(0, 2, 1).to(device)
-            w = (torch.from_numpy(env.input_data[:, :, 2].reshape(env.batch_size, env.n_nodes, 1).astype(np.float32))
-            .to(device))
+            w = (
+                torch.from_numpy(env.input_data[:, :, 2].reshape(env.batch_size, env.n_nodes, 1).astype(np.float32)).to(
+                    device))
 
             # lstm initial states 
             hx = torch.zeros(1, env.batch_size, args['hidden_dim']).to(device)
@@ -113,7 +117,7 @@ class A2CAgent(object):
 
                 time_step += 1
 
-            print("epochs: ", i)
+            # print("epochs: ", i)
             actions = torch.cat(actions, dim=1)  # (batch_size, seq_len)
             logs = torch.cat(logs, dim=1)  # (batch_size, seq_len)
             # Query the critic for an estimate of the reward
@@ -126,18 +130,17 @@ class A2CAgent(object):
 
             actor_optim.zero_grad()
             actor_loss.backward()
-
             torch.nn.utils.clip_grad_norm_(actor.parameters(), args['max_grad_norm'])
             actor_optim.step()
+
             critic_optim.zero_grad()
             critic_loss.backward()
             torch.nn.utils.clip_grad_norm_(critic.parameters(), args['max_grad_norm'])
             critic_optim.step()
 
             e_t = time.time() - s_t
-            print("e_t: ", e_t)
+            # print("e_t: ", e_t)
             if i % args['test_interval'] == 0:
-
                 R = self.test()
                 r_test.append(R)
                 np.savetxt("trained_models/test_rewards.txt", r_test)
@@ -149,11 +152,17 @@ class A2CAgent(object):
                     num = str(i // args['save_interval'])
                     torch.save(actor.state_dict(), 'trained_models/' + '/' + 'best_model' + '_actor_truck_params.pkl')
                     torch.save(critic.state_dict(), 'trained_models/' + '/' + 'best_model' + '_critic_params.pkl')
+                    patience = 0
+                else:
+                    patience += 1
 
             if i % args['save_interval'] == 0:
                 num = str(i // args['save_interval'])
                 torch.save(actor.state_dict(), 'trained_models/' + '/' + num + '_actor_truck_params.pkl')
                 torch.save(critic.state_dict(), 'trained_models/' + '/' + num + '_critic_params.pkl')
+
+            if patience > args['patience']:
+                break
 
     def test(self):
         args = self.args
@@ -174,7 +183,7 @@ class A2CAgent(object):
         costs = []
         with torch.no_grad():
             data = torch.from_numpy(data[:, :, :2].astype(np.float32)).to(device)
-            static_hidden = actor.emd_stat(data).permute(0, 2, 1)
+            static_hidden = actor.emd_stat(dataGen, data).permute(0, 2, 1)
 
             # lstm initial states 
             hx = torch.zeros(1, env.batch_size, args['hidden_dim']).to(device)
@@ -227,7 +236,12 @@ class A2CAgent(object):
 
         fname = 'test_results-{}-len-{}.txt'.format(args['test_size'],
                                                     args['n_nodes'])
-        fname = 'results/' + fname
+        fname = './results/' + fname
+        directory = os.path.dirname(fname)
+        if directory:
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
         np.savetxt(fname, R)
 
         actor.train()
@@ -241,7 +255,6 @@ class A2CAgent(object):
         env = self.env
         dataGen = self.dataGen
         actor = self.actor
-
         actor.eval()
         actor.set_sample_mode(True)
         times = []
@@ -260,7 +273,7 @@ class A2CAgent(object):
             with torch.no_grad():
                 data = torch.from_numpy(data[:, :, :2].astype(np.float32)).to(device)
                 # [b_s, hidden_dim, n_nodes]
-                static_hidden = actor.emd_stat(data).permute(0, 2, 1)
+                static_hidden = actor.emd_stat(dataGen, data).permute(0, 2, 1)
 
                 # lstm initial states 
                 hx = torch.zeros(1, sample_size, args['hidden_dim']).to(device)
