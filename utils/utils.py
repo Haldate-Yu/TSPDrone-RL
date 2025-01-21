@@ -1,4 +1,3 @@
-# Code referenced from https://gist.github.com/gyglim/1f8dfb1b5c82627ae3efcfbbadb9f514
 from __future__ import print_function
 
 import json
@@ -9,8 +8,9 @@ import time
 from datetime import datetime
 import numpy as np
 
-import numpy as np
 import scipy.misc
+from graph_model.base_model import *
+from graph_model.pooling_model import *
 
 try:
     from StringIO import StringIO  # Python 2.7
@@ -56,3 +56,16 @@ class printOut(object):
 def get_time():
     '''returns formatted current time'''
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def get_model(args):
+    model_name = args['model_name']
+    if model_name == "gcn":
+        return Net_GCN(input_dims=2,
+                       num_layers=args['gnn_layers'],
+                       hidden_dims=args['gnn_hidden_dims'],
+                       output_dims=args['hidden_dim'],
+                       dropout=args['dropout']
+        )
+    else:
+        raise ValueError(f"Model {model_name} not supported!")

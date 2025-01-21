@@ -6,6 +6,7 @@ import argparse
 from model.nnets import Actor, Critic
 from utils.agent import A2CAgent
 from utils.env_no_comb import Env, DataGenerator
+from utils.utils import get_model
 from graph_model.base_model import Net_GCN
 
 
@@ -23,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('--v_t', default=1, type=int, help="Speed of truck in m/s")
     parser.add_argument('--v_d', default=2, type=int, help="Speed of drone in m/s")
     parser.add_argument('--max_w', default=2.5, type=float, help="Max weight a drone can carry")
-    parser.add_argument('--batch_size', default=10, type=int, help='Batch size for training')
+    parser.add_argument('--batch_size', default=100, type=int, help='Batch size for training')
     parser.add_argument('--n_train', default=1000000, type=int, help='# of episodes for training')
     parser.add_argument('--test_size', default=100, type=int, help='# of instances for testing')
     parser.add_argument('--data_dir', type=str, default='data')
@@ -46,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', default=0.1, type=float, help='The dropout prob')
 
     # Attention
-    parser.add_argument('--use_tanh', type=str2bool, default=False, help='use tahn before computing probs in attention')
+    parser.add_argument('--use_tanh', type=str2bool, default=False, help='use tanh before computing probs in attention')
     parser.add_argument('--mask_logits', type=str2bool, default=True, help='mask unavailble nodes probs')
 
     # Graph Topology
@@ -58,6 +59,9 @@ if __name__ == '__main__':
                                                                                   ' distance as node features')
 
     # Graph Model Options
+    parser.add_argument('--model_name', type=str, default='gcn',
+                        choices=['gcn', 'gat', 'sage', 'lp'],
+                        help='Type of model')
     parser.add_argument('--gnn_layers', type=int, default=2, help='model layers for gnn model')
     parser.add_argument('--gnn_hidden_dims', type=int, default=32, help='hidden dims for gnn model')
 
@@ -69,12 +73,10 @@ if __name__ == '__main__':
     parser.add_argument('--actor_net_lr', default=1e-4, type=float, help="Set the learning rate for the actor network")
     parser.add_argument('--critic_net_lr', default=1e-4, type=float,
                         help="Set the learning rate for the critic network")
-    parser.add_argument('--gnn_net_lr', default=5e-4, type=float, help="Set the learning rate for the GNN network")
-    parser.add_argument('--gnn_net_wd', type=float, default=0.0001, help='Set the weight decay for the GNN network')
-    parser.add_argument('--random_seed', default=42, type=int, help='')
+    parser.add_argument('--random_seed', default=42, type=int, help='Random seed for testing')
     parser.add_argument('--max_grad_norm', default=2.0, type=float, help='Gradient clipping')
     parser.add_argument('--decode_len', default=30, type=int, help='Max number of steps per episode')
-    parser.add_argument('--patience', type=int, default=50, help='patience for early stopping')
+    parser.add_argument('--patience', type=int, default=200, help='patience for early stopping')
 
     # Evaluation
     parser.add_argument('--sampling', default=True, type=str2bool, help="whether to do the batch sampling or not")
@@ -104,16 +106,15 @@ if __name__ == '__main__':
     n_nodes = args['n_nodes']
     dataGen = DataGenerator(args)
     data = dataGen.get_train_next()
-    print("train next: {}, size: {}".format(data[0], len(data)))
-    print("\n")
+    # print("train next: {}, size: {}".format(data[0], len(data)))
+    # print("\n")
 
     data = dataGen.get_test_all()
-    print("test all: {}".format(data))
-    print("\n")
+    # print("test all: {}".format(data))
+    # print("\n")
 
-    # todo load GNN model utils
-    gnn_model = Net_GCN(input_dims=2, num_layers=args['gnn_layers'], hidden_dims=args['gnn_hidden_dims'],
-                        output_dims=args['hidden_dim'], dropout=args['dropout'])
+    # load GNN model
+    gnn_model = get_model(args)
 
     env = Env(args, data)
     actor = Actor(hidden_size=args['hidden_dim'], num_layers=args['rnn_layers'],
