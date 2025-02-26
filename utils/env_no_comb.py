@@ -86,26 +86,36 @@ class DataGenerator(object):
                 for k in range(num_nodes_batch):
                     # calculate Euclidean distance.
                     edge_weights[j, k] = torch.sqrt(torch.sum((coord_batch[j] - coord_batch[k]) ** 2))
+            # normalize by row
+            edge_weights_normalized = np.zeros_like(edge_weights)
+            for i in range(edge_weights.shape[0]):
+                min_val = np.min(edge_weights[i])
+                max_val = np.max(edge_weights[i])
+                # avoid division by zero
+                if max_val == min_val:
+                    edge_weights_normalized[i] = 0.0
+                else:
+                    edge_weights_normalized[i] = (edge_weights[i] - min_val) / (max_val - min_val)
             # sparsification using topk/threshold args
             if self.args["k_value"] is not None:
                 topk = self.args["k_value"]
                 for j in range(num_nodes_batch):
-                    sorted_indices = np.argsort(edge_weights[j])[:topk]
+                    sorted_indices = np.argsort(edge_weights_normalized[j])[:topk]
                     for idx in sorted_indices:
                         # avoid self-loops
                         if j != idx:
                             src_list.append(j)
                             dst_list.append(idx)
-                            edge_attr_list.append(edge_weights[j, idx])
+                            edge_attr_list.append(edge_weights_normalized[j, idx])
 
             elif self.args["distance_threshold"] is not None:
                 distance_threshold = self.args["distance_threshold"]
                 for j in range(num_nodes_batch):
                     for k in range(num_nodes_batch):
-                        if edge_weights[j, k] < distance_threshold:
+                        if edge_weights_normalized[j, k] < distance_threshold:
                             src_list.append(j)
                             dst_list.append(k)
-                            edge_attr_list.append(edge_weights[j, k])
+                            edge_attr_list.append(edge_weights_normalized[j, k])
 
             else:
                 raise Exception("At least one value or threshold should be set!")
